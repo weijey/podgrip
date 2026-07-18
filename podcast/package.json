@@ -1,6 +1,6 @@
 {
-  "name": "@weijey/podgrip",
-  "version": "1.1.0",
+  "name": "podgrip",
+  "version": "1.1.2",
   "description": "小宇宙播客下载器 — 下载播客音频，自动嵌入封面，支持交互式选择。Grip your podcasts from the cosmos.",
   "type": "module",
   "main": "index.js",
@@ -45,13 +45,13 @@
   "homepage": "https://github.com/weijey/podgrip#readme",
   "dependencies": {
     "axios": "^1.6.0",
-    "cheerio": "^1.0.0-rc.12"
+    "cheerio": "^1.0.0-rc.12",
+    "commander": "^15.0.0"
   },
   "optionalDependencies": {
     "node-id3": "^0.2.9"
   },
   "devDependencies": {
-    "commander": "^15.0.0",
     "oxfmt": "^0.59.0",
     "oxlint": "^1.74.0",
     "vitest": "^4.1.10"
