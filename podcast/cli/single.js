@@ -5,6 +5,7 @@ import { downloadAudio } from "../lib/download/http.js";
 import { embedCover } from "../lib/download/ffmpeg.js";
 import { createProgress } from "../lib/download/progress.js";
 import { generateFilename } from "../lib/output.js";
+import { isArchived, markArchived } from "../lib/archive.js";
 
 export function registerSingleCommands(program) {
   program
@@ -61,6 +62,12 @@ export function registerSingleCommands(program) {
 
       const outputPath = path.join(outputDir, filename);
 
+      if (isArchived(info.episodeId) && !opts.force) {
+        console.log(`\n⏭️  已归档：${info.originalTitle}`);
+        console.log("   使用 -f 重新下载");
+        return;
+      }
+
       if (fs.existsSync(outputPath) && !opts.force) {
         console.log(`\n⚠️  文件已存在：${filename}`);
         console.log("   使用 -f 覆盖文件");
@@ -78,6 +85,8 @@ export function registerSingleCommands(program) {
       console.log(`\n✅ 音频下载完成!`);
       console.log(`   路径：${outputPath}`);
       console.log(`   大小：${size} MB`);
+
+      markArchived(info.episodeId);
 
       if (opts.cover !== false && info.coverUrl) {
         console.log("\n🎨 处理封面...");

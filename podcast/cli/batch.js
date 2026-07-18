@@ -7,6 +7,7 @@ import { embedCover as ec } from "../lib/download/ffmpeg.js";
 import { createProgress } from "../lib/download/progress.js";
 import { generateFilename, getDesktopPath } from "../lib/output.js";
 import { selectEpisodes } from "../lib/select.js";
+import { isArchived, markArchived } from "../lib/archive.js";
 
 async function downloadEps(episodes, { outputDir, force, embedCoverFlag }) {
   const results = { success: [], failed: [], skipped: [] };
@@ -17,12 +18,19 @@ async function downloadEps(episodes, { outputDir, force, embedCoverFlag }) {
 
     try {
       const info = await extractEpisodeInfo(ep.url);
+
+      if (isArchived(info.episodeId) && !force) {
+        console.log(`    📦 已归档，跳过\n`);
+        results.skipped.push({ ...info, reason: "archived" });
+        continue;
+      }
+
       const filename = generateFilename(info);
       const outputPath = path.join(outputDir, filename);
 
       if (fs.existsSync(outputPath) && !force) {
         console.log(`    ⏭️  已存在，跳过\n`);
-        results.skipped.push({ ...info, file: filename });
+        results.skipped.push({ ...info, file: filename, reason: "exists" });
         continue;
       }
 
@@ -30,6 +38,8 @@ async function downloadEps(episodes, { outputDir, force, embedCoverFlag }) {
       const progress = createProgress("进度");
       await dlAudio(info.audioUrl, outputPath, progress);
       console.log("\n    ✅ 音频完成");
+
+      markArchived(info.episodeId);
 
       if (embedCoverFlag && info.coverUrl) {
         try {
