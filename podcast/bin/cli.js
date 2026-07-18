@@ -1,114 +1,14 @@
 #!/usr/bin/env node
 
-/**
- * xyz-dl - 小宇宙播客下载器
- * 
- * 命令行入口文件
- */
+import { Command } from "commander";
+import { registerSingleCommands } from "../cli/single.js";
+import { registerBatchCommands } from "../cli/batch.js";
 
-const { spawn } = require('child_process');
-const path = require('path');
+const program = new Command();
 
-const commands = {
-  'extract': 'extractor.js',
-  'info': 'extractor.js',
-  'download': 'extractor.js',
-  'parse': 'batch.js',
-  'batch': 'batch.js',
-  'list': 'batch.js',
-  'select': 'batch.js'
-};
+program.name("xyz-dl").description("🎵 小宇宙播客下载器").version("1.1.0");
 
-function showHelp() {
-  console.log(`
-🎵 xyz-dl - 小宇宙播客下载器
+registerSingleCommands(program);
+registerBatchCommands(program);
 
-用法:
-  npx xyz-dl <command> [options]
-  或全局安装后：xyz-dl <command> [options]
-
-命令:
-  extract <链接>           提取音频地址和封面
-  info <链接>              显示播客详细信息
-  download <链接>          下载音频并嵌入封面
-  parse <播客主页>         解析播客列表页
-  select <播客主页>        交互式选择并下载
-  batch <链接文件>         批量处理链接列表
-
-全局选项:
-  -h, --help              显示帮助
-
-示例:
-  npx xyz-dl extract https://www.xiaoyuzhoufm.com/episode/xxx
-  npx xyz-dl download https://... -o ./podcasts
-  npx xyz-dl parse https://www.xiaoyuzhoufm.com/podcast/xxx
-  npx xyz-dl batch episodes.txt -a download
-
-选项:
-  -o, --output <目录>     下载目录
-  -n, --name <文件名>     自定义文件名
-  --no-cover              不嵌入封面
-  -l, --limit <数量>      限制处理数量 (parse 命令)
-  -d, --delay <毫秒>      请求间隔 (parse 命令)
-  -f, --force             覆盖已存在的文件
-
----
-💡 提示：需要安装 ffmpeg 以支持封面嵌入
-   macOS: brew install ffmpeg
-   Linux: sudo apt install ffmpeg
-`);
-}
-
-async function main() {
-  const args = process.argv.slice(2);
-  const command = args[0];
-
-  if (!command || command === '-h' || command === '--help') {
-    showHelp();
-    process.exit(command ? 0 : 1);
-  }
-
-  const scriptFile = commands[command];
-  if (!scriptFile) {
-    console.error(`❌ 未知命令：${command}`);
-    console.log('使用 xyz-dl --help 查看可用命令');
-    process.exit(1);
-  }
-
-  const scriptPath = path.join(__dirname, '..', 'lib', scriptFile);
-  
-  // 为 batch/parse 命令添加特殊处理
-  if (['parse', 'batch', 'list', 'select'].includes(command)) {
-    const newArgs = ['--cmd', command, ...args.slice(1)];
-    const child = spawn('node', [scriptPath, ...newArgs], {
-      stdio: 'inherit',
-      cwd: process.cwd()
-    });
-
-    child.on('error', (err) => {
-      console.error(`❌ 执行失败：${err.message}`);
-      process.exit(1);
-    });
-
-    child.on('exit', (code) => {
-      process.exit(code || 0);
-    });
-    return;
-  }
-
-  const child = spawn('node', [scriptPath, ...args], {
-    stdio: 'inherit',
-    cwd: process.cwd()
-  });
-
-  child.on('error', (err) => {
-    console.error(`❌ 执行失败：${err.message}`);
-    process.exit(1);
-  });
-
-  child.on('exit', (code) => {
-    process.exit(code || 0);
-  });
-}
-
-main();
+program.parse();

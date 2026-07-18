@@ -1,7 +1,8 @@
 {
   "name": "xyz-dl",
-  "version": "1.0.2",
-  "description": "下载小宇宙播客音频，自动嵌入专辑封面和元数据",
+  "version": "1.1.0",
+  "description": "下载小宇宙播客音频，自动嵌入专辑封面和元数据。支持单集下载和播客主页交互式选择。",
+  "type": "module",
   "main": "index.js",
   "bin": {
     "xyz-dl": "bin/cli.js"
@@ -9,12 +10,16 @@
   "files": [
     "bin/",
     "lib/",
+    "cli/",
     "index.js"
   ],
   "scripts": {
     "start": "node bin/cli.js",
-    "test": "node -e \"const m=require('./lib/extractor.js');const fn=m.generateFilename({podcastName:'T',title:'E1'});console.assert(fn==='[T] E1.m4a');console.log('PASS: module loads')\"",
-    "smoke": "node bin/cli.js --help"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "oxlint ./bin ./lib ./cli",
+    "format": "oxfmt ./bin ./lib ./cli",
+    "format:check": "oxfmt --check ./bin ./lib ./cli"
   },
   "keywords": [
     "xiaoyuzhou",
@@ -28,7 +33,7 @@
   "author": "",
   "license": "MIT",
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.17.0"
   },
   "repository": {
     "type": "git",
@@ -43,6 +48,12 @@
     "cheerio": "^1.0.0-rc.12"
   },
   "optionalDependencies": {
-    "node-id3": "^0.2.0"
+    "node-id3": "^0.2.9"
+  },
+  "devDependencies": {
+    "commander": "^15.0.0",
+    "oxfmt": "^0.59.0",
+    "oxlint": "^1.74.0",
+    "vitest": "^4.1.10"
   }
 }
