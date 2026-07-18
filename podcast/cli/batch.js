@@ -3,60 +3,59 @@ import path from "path";
 import { parsePodcastPage } from "../lib/xiaoyuzhou/podcast.js";
 import { extractEpisodeInfo } from "../lib/xiaoyuzhou/extract.js";
 import { downloadAudio as dlAudio } from "../lib/download/http.js";
-import { embedCover as ec } from "../lib/download/ffmpeg.js";
+import { embedCover } from "../lib/download/ffmpeg.js";
 import { createProgress } from "../lib/download/progress.js";
+import { parallelMap } from "../lib/download/pool.js";
 import { generateFilename, getDesktopPath } from "../lib/output.js";
 import { selectEpisodes } from "../lib/select.js";
 import { isArchived, markArchived } from "../lib/archive.js";
 
-async function downloadEps(episodes, { outputDir, force, embedCoverFlag }) {
-  const results = { success: [], failed: [], skipped: [] };
-
-  for (let i = 0; i < episodes.length; i++) {
-    const ep = episodes[i];
-    console.log(`[${i + 1}/${episodes.length}] ${ep.title}`);
-
+async function doDownload(info, outputPath, embedCoverFlag) {
+  const progress = createProgress("进度");
+  await dlAudio(info.audioUrl, outputPath, progress);
+  process.stdout.write("\n");
+  markArchived(info.episodeId);
+  if (embedCoverFlag && info.coverUrl) {
     try {
-      const info = await extractEpisodeInfo(ep.url);
-
-      if (isArchived(info.episodeId) && !force) {
-        console.log(`    📦 已归档，跳过\n`);
-        results.skipped.push({ ...info, reason: "archived" });
-        continue;
-      }
-
-      const filename = generateFilename(info);
-      const outputPath = path.join(outputDir, filename);
-
-      if (fs.existsSync(outputPath) && !force) {
-        console.log(`    ⏭️  已存在，跳过\n`);
-        results.skipped.push({ ...info, file: filename, reason: "exists" });
-        continue;
-      }
-
-      console.log(`    📥 下载：${filename}`);
-      const progress = createProgress("进度");
-      await dlAudio(info.audioUrl, outputPath, progress);
-      console.log("\n    ✅ 音频完成");
-
-      markArchived(info.episodeId);
-
-      if (embedCoverFlag && info.coverUrl) {
-        try {
-          await ec(outputPath, info.coverUrl, info);
-          console.log("    ✅ 封面已嵌入");
-        } catch (e) {
-          console.log(`    ⚠️  封面失败：${e.message}`);
-        }
-      }
-      results.success.push({ ...info, file: filename });
-    } catch (error) {
-      console.log(`    ❌ 失败：${error.message}`);
-      results.failed.push({ ...ep, error: error.message });
+      await embedCover(outputPath, info.coverUrl, info);
+    } catch (e) {
+      console.log(`  ⚠️ 封面失败: ${e.message}`);
     }
-    console.log("");
+  }
+}
+
+async function downloadOneEpisode(ep, { outputDir, force, embedCoverFlag }) {
+  const info = await extractEpisodeInfo(ep.url);
+
+  if (isArchived(info.episodeId) && !force) {
+    console.log(`${ep.title}: 📦 已归档`);
+    return { status: "skipped", info, reason: "archived" };
   }
 
+  const filename = generateFilename(info);
+  const outputPath = path.join(outputDir, filename);
+
+  if (fs.existsSync(outputPath) && !force) {
+    console.log(`${ep.title}: ⏭️ 已存在`);
+    return { status: "skipped", info, file: filename, reason: "exists" };
+  }
+
+  console.log(`${ep.title}: 📥 下载中...`);
+  await doDownload(info, outputPath, embedCoverFlag);
+  return { status: "success", info, file: filename };
+}
+
+async function downloadEps(episodes, { outputDir, force, embedCoverFlag }) {
+  const mapped = await parallelMap(episodes, (ep) =>
+    downloadOneEpisode(ep, { outputDir, force, embedCoverFlag }),
+  );
+
+  const results = { success: [], failed: [], skipped: [] };
+  for (const r of mapped) {
+    if (r.status === "failed") results.failed.push({ error: r.error });
+    else if (r.value.status === "skipped") results.skipped.push(r.value);
+    else results.success.push(r.value);
+  }
   return results;
 }
 
@@ -91,14 +90,14 @@ export function registerBatchCommands(program) {
         console.log(`\n📁 创建目录：${outputDir}`);
       }
 
-      console.log(`\n📋 下载 ${selected.length} 集到 ${outputDir}\n`);
+      console.log(`\n📋 并发下载 ${selected.length} 集到 ${outputDir}\n`);
       const results = await downloadEps(selected, {
         outputDir,
         force: opts.force,
         embedCoverFlag: opts.cover !== false,
       });
 
-      console.log("📊 处理统计:");
+      console.log("\n📊 处理统计:");
       console.log(`  成功：${results.success.length}`);
       console.log(`  失败：${results.failed.length}`);
       console.log(`  跳过：${results.skipped.length}`);
