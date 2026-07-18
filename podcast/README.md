@@ -1,22 +1,24 @@
 # podgrip
 
-> Grip your podcasts from the cosmos. 小宇宙 FM 命令行下载器。
+> Grip your podcasts from the cosmos. 小宇宙 FM 播客下载器。
 
-[![NPM Version](https://img.shields.io/npm/v/@weijey/podgrip)](https://www.npmjs.com/package/@weijey/podgrip)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.17-brightgreen)](package.json)
 
-`podgrip` 是一个专为[小宇宙 FM](https://www.xiaoyuzhoufm.com) 设计的命令行播客下载工具。支持单集下载、播客主页解析、交互式批量选择、自动封面嵌入。零配置，一行命令即可把播客抓到本地。
+`podgrip` 是小宇宙 FM 专用播客下载工具——CLI + 浏览器两种交互方式。
+无需登录，解析页面直取音频 CDN，流式下载，自动嵌入封面。
+支持订阅管理 + 新集监控 + Web 面板。
 
 ## 特性
 
-- 🎵 **单集下载** — 输入链接，拿到音频。自动从页面解析音频直链，无需登录
-- 📋 **播客主页解析** — 一键列出播客所有剧集，干净标题，无 CSS 噪声
-- 🎯 **交互式选择** — `podgrip select` 列出剧集，输入编号选择性下载
-- 🖼️ **自动封面嵌入** — 下载完成后自动通过 ffmpeg 嵌入专辑封面到音频文件
-- 📁 **智能输出路径** — WSL2 自动映射到 Windows 桌面，macOS/Linux 使用系统桌面
-- 🧪 **测试覆盖** — vitest 单元测试 + oxlint 代码规范
-- 🔧 **可编程调用** — 提供 `require('podgrip')` API，可嵌入其他项目
+- **CLI + Web 双模式** — `podgrip download` 下单体，`podgrip serve` 开浏览器面板
+- **订阅 + 同步** — 订阅播客，`podgrip sync` 自动抓新集。配合 cron 全自动
+- **交互式选择** — `podgrip select` 列出剧集，输编号选择性下载
+- **归档去重** — 纯文本 archive（yt-dlp 风格），关掉终端也知道下过什么
+- **并发下载** — 3 线并发，播客多集秒下
+- **封面嵌入** — ffmpeg 自动写入标题/艺术家/专辑 + 封面图
+- **文件名模板** — `~/.podgrip/config.json` 自定义命名规则
+- **Docker 支持** — `docker-compose up` 即跑，文件落到 Windows 桌面
 
 ## 安装
 
@@ -24,98 +26,145 @@
 npm install -g @weijey/podgrip
 ```
 
-要求 Node.js >= 18.17.0。如需封面嵌入功能，请安装 ffmpeg：
+要求 Node.js >= 18.17.0。封面嵌入需 ffmpeg：
+
 ```bash
 # macOS
 brew install ffmpeg
 # Ubuntu/Debian
 sudo apt install ffmpeg
+# Docker (已内置 ffmpeg)
+docker-compose up -d
 ```
 
-## 快速开始
+## 5 分钟上手
 
 ```bash
-# 查看单集信息
-podgrip info https://www.xiaoyuzhoufm.com/episode/69eb32bd1e94ae69210ebaeb
+# 订阅一个播客
+podgrip subscribe https://www.xiaoyuzhoufm.com/podcast/62694abdb221dd5908417d1e
 
-# 下载单集到桌面
-podgrip download https://www.xiaoyuzhoufm.com/episode/69eb32bd1e94ae69210ebaeb -f
+# 下载最近 3 集
+podgrip sync --limit 3
 
-# 解析播客主页，看有哪些剧集
-podgrip parse https://www.xiaoyuzhoufm.com/podcast/62694abdb221dd5908417d1e
-
-# 交互式选择并下载（推荐）
+# 交互式选择（推荐第一次用）
 podgrip select https://www.xiaoyuzhoufm.com/podcast/62694abdb221dd5908417d1e
+
+# 开 Web 面板
+podgrip serve
+# → 浏览器打开 http://localhost:3456
 ```
 
 ## 命令参考
 
-### `podgrip extract <url>`
-提取单集的音频地址和封面 URL，不下载。
+### 单集
 
-### `podgrip info <url>`
-显示单集详细信息：标题、播客名、音频地址、封面地址。
-
-### `podgrip download <url> [options]`
-下载单集音频并嵌入封面。
-
-| 选项 | 说明 | 默认值 |
-|------|------|--------|
-| `-o, --output <dir>` | 下载目录 | 当前目录 |
-| `-n, --name <filename>` | 自定义文件名 | `[播客名] 标题.m4a` |
-| `-f, --force` | 覆盖已存在文件 | `false` |
-| `--no-cover` | 不嵌入封面 | — |
-
-### `podgrip parse <podcastUrl>`
-解析播客主页，列出所有剧集（只读取，不下载）。
-
-### `podgrip select <podcastUrl> [options]`
-交互式选择剧集下载。显示剧集列表 → 输入编号（如 `1,3,5` 或 `all`）→ 下载到 `桌面/<播客名>/`。
-
-| 选项 | 说明 |
+| 命令 | 说明 |
 |------|------|
-| `-f, --force` | 覆盖已存在文件 |
-| `--no-cover` | 不嵌入封面 |
+| `extract <url>` | 提取音频地址和封面 URL |
+| `info <url>` | 查看单集详细信息 |
+| `download <url> [options]` | 下载单集。`-f` 强制覆盖，`-o <dir>` 指定目录，`--no-cover` 跳过封面 |
 
-## 程序化 API
+### 播客
+
+| 命令 | 说明 |
+|------|------|
+| `parse <url>` | 列出播客所有剧集 |
+| `select <url> [options]` | 交互式选择下载。支持 `--limit`、`--offset`、`--reverse` |
+
+### 订阅 + 同步
+
+| 命令 | 说明 |
+|------|------|
+| `subscribe <url>` | 添加订阅 |
+| `subscriptions` | 列出所有订阅 |
+| `unsubscribe <index>` | 取消订阅 |
+| `sync [options]` | 检查所有订阅，下载新集。支持 `--limit`、`--offset`、`--reverse` |
+
+### 管理
+
+| 命令 | 说明 |
+|------|------|
+| `serve [-p 3456]` | 启动 Web 管理面板 |
+
+### 常用组合
+
+```bash
+# 免交互：订阅后自动同步
+podgrip subscribe <url> && podgrip sync
+
+# 只下最新 3 集
+podgrip sync --limit 3
+
+# 从第 10 集开始下 5 集
+podgrip select <url> --offset 9 --limit 5
+
+# 每天 9 点自动检查新集（加 crontab）
+0 9 * * * podgrip sync
+```
+
+## Web 面板
+
+```
+podgrip serve
+
+# 主页 → 所有订阅卡片
+# 点卡片 → 剧集列表（已下载 / 新 / 下载中）
+# 点下载 → 实时进度条
+# + 添加 → 输入播客链接，订阅
+```
+
+## 配置 (`~/.podgrip/config.json`)
+
+```json
+{
+  "outputDir": null,
+  "concurrency": 3,
+  "filenameTemplate": "[{{podcast}}] {{title}}"
+}
+```
+
+| 键 | 默认 | 说明 |
+|------|------|------|
+| `outputDir` | `null`（自动检测桌面） | 下载目录 |
+| `concurrency` | `3` | 并发下载数 |
+| `filenameTemplate` | `[{{podcast}}] {{title}}` | 文件名模板。可用：`{{podcast}}`、`{{title}}`、`{{episode_id}}` |
+
+## 数据文件 (`~/.podgrip/`)
+
+```
+~/.podgrip/
+  archive.txt           # 已下载 episode ID（每行一条）
+  subscriptions.json    # 订阅列表
+  config.json           # 全局配置（可选）
+```
+
+归档文件是纯文本，可直接 `grep`、`wc -l`、git 追踪、跨机器同步。
+
+## Docker
+
+```bash
+# 启动
+docker-compose up -d
+
+# 文件在 Windows 桌面，数据在 named volume
+# 浏览器 → http://localhost:3456
+```
+
+## API (程序化调用)
 
 ```javascript
 const podgrip = require('@weijey/podgrip')
 
-// 提取单集信息
 const info = await podgrip.extractEpisodeInfo(url)
-// { episodeId, title, podcastName, audioUrl, coverUrl, ... }
-
-// 下载并嵌入封面
-const result = await podgrip.download(url, {
-  outputDir: './podcasts',
-  embedCover: true
-})
-// { success: true, file: '/path/to/audio.m4a', info: {...} }
-```
-
-## 项目结构
-
-```text
-bin/cli.js              ← 入口
-cli/
-  single.js             ← 单集命令（extract/info/download）
-  batch.js              ← 播客命令（parse/select）
-lib/
-  xiaoyuzhou/
-    extract.js          ← 页面解析（cheerio 提取音频/标题/封面）
-    podcast.js          ← 播客主页剧集列表解析
-  download/
-    http.js             ← HTTP 流下载
-    ffmpeg.js           ← ffmpeg 封面嵌入
-    progress.js         ← 下载进度回调
-  output.js             ← 文件名生成 + 桌面路径
-  select.js             ← 交互式剧集选择
+// { episodeId, title, podcastName, audioUrl, coverUrl }
 ```
 
 ## 原理
 
-小宇宙 FM 是 React SPA，页面中的 `<script>` 标签和 JSON-LD 数据嵌入了音频 CDN 直链（`media.xyzcdn.net`）。podgrip 用 cheerio 解析这些数据，无需登录即可获取音频 URL，然后用 axios 流式下载。
+小宇宙 FM 是 React SPA，页面 `<script>` 中嵌入了 CDN 直链（`media.xyzcdn.net`）。
+podgrip 用 cheerio 解析 HTML，免登录提取音频 URL，axios 流式下载。
+
+订阅监控不依赖 RSS —— 定期抓取播客页面 → 对比 archive → 下载新集。
 
 ## License
 
