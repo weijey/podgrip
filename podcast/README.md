@@ -2,7 +2,7 @@
 
 > Grip your podcasts from the cosmos. 小宇宙 FM 命令行下载器。
 
-[![NPM Version](https://img.shields.io/npm/v/podgrip)](https://www.npmjs.com/package/podgrip)
+[![NPM Version](https://img.shields.io/npm/v/@weijey/podgrip)](https://www.npmjs.com/package/@weijey/podgrip)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.17-brightgreen)](package.json)
 
@@ -21,7 +21,7 @@
 ## 安装
 
 ```bash
-npm install -g podgrip
+npm install -g @weijey/podgrip
 ```
 
 要求 Node.js >= 18.17.0。如需封面嵌入功能，请安装 ffmpeg：
@@ -80,7 +80,7 @@ podgrip select https://www.xiaoyuzhoufm.com/podcast/62694abdb221dd5908417d1e
 ## 程序化 API
 
 ```javascript
-const podgrip = require('podgrip')
+const podgrip = require('@weijey/podgrip')
 
 // 提取单集信息
 const info = await podgrip.extractEpisodeInfo(url)
