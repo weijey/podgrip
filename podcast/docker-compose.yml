@@ -1,0 +1,12 @@
+services:
+  podgrip:
+    build: .
+    ports:
+      - "3456:3456"
+    volumes:
+      - podgrip_data:/root/.podgrip
+      - "/mnt/c/Users/weijey/Desktop:/root/Desktop"
+    restart: unless-stopped
+
+volumes:
+  podgrip_data:
