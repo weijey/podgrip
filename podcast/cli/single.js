@@ -5,6 +5,7 @@ import { downloadAudio } from "../lib/download/http.js";
 import { embedCover } from "../lib/download/ffmpeg.js";
 import { createProgress } from "../lib/download/progress.js";
 import { generateFilename } from "../lib/output.js";
+import { loadConfig } from "../lib/config.js";
 import { isArchived, markArchived } from "../lib/archive.js";
 
 export function registerSingleCommands(program) {
@@ -38,27 +39,28 @@ export function registerSingleCommands(program) {
   program
     .command("download <url>")
     .description("下载音频并嵌入封面")
-    .option("-o, --output <dir>", "下载目录", ".")
+    .option("-o, --output <dir>", "下载目录（默认从 config 读取）")
     .option("-n, --name <filename>", "自定义文件名")
     .option("-f, --force", "覆盖已存在的文件", false)
     .option("--no-cover", "不嵌入封面")
     .action(async (url, opts) => {
+      const config = loadConfig();
       const info = await extractEpisodeInfo(url);
       console.log(`\n✅ 找到音频:`);
       console.log(`   标题：${info.originalTitle}`);
       console.log(`   播客：${info.originalPodcastName || "未知"}`);
 
-      const outputDir = path.resolve(opts.output);
+      const outputDir = path.resolve(opts.output || config.outputDir || ".");
       if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
         console.log(`\n📁 创建目录：${outputDir}`);
       }
 
       const filename = opts.name
-        ? opts.name.endsWith(".m4a")
+        ? opts.name.endsWith(".m4a") || opts.name.endsWith(".mp3")
           ? opts.name
           : `${opts.name}.m4a`
-        : generateFilename(info);
+        : generateFilename(info, config.filenameTemplate);
 
       const outputPath = path.join(outputDir, filename);
 

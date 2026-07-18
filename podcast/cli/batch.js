@@ -8,8 +8,19 @@ import { createProgress } from "../lib/download/progress.js";
 import { parallelMap } from "../lib/download/pool.js";
 import { generateFilename, getDesktopPath } from "../lib/output.js";
 import { selectEpisodes } from "../lib/select.js";
+import { loadConfig } from "../lib/config.js";
 import { isArchived, markArchived } from "../lib/archive.js";
-import { loadSubscriptions, addSubscription } from "../lib/subscriptions.js";
+import { loadSubscriptions, addSubscription, removeSubscription } from "../lib/subscriptions.js";
+
+function applyFilters(episodes, opts) {
+  let list = [...episodes];
+  if (opts.reverse) list = list.reverse();
+  const offset = parseInt(opts.offset) || 0;
+  const limit = parseInt(opts.limit) || 0;
+  if (offset > 0) list = list.slice(offset);
+  if (limit > 0) list = list.slice(0, limit);
+  return list;
+}
 
 async function doDownload(info, outputPath, embedCoverFlag) {
   const progress = createProgress("进度");
@@ -25,7 +36,8 @@ async function doDownload(info, outputPath, embedCoverFlag) {
   }
 }
 
-async function downloadOneEpisode(ep, { outputDir, force, embedCoverFlag }) {
+async function downloadOneEpisode(ep, opts) {
+  const { outputDir, force, embedCoverFlag, template } = opts;
   const info = await extractEpisodeInfo(ep.url);
 
   if (isArchived(info.episodeId) && !force) {
@@ -33,7 +45,7 @@ async function downloadOneEpisode(ep, { outputDir, force, embedCoverFlag }) {
     return { status: "skipped", info, reason: "archived" };
   }
 
-  const filename = generateFilename(info);
+  const filename = generateFilename(info, template);
   const outputPath = path.join(outputDir, filename);
 
   if (fs.existsSync(outputPath) && !force) {
@@ -46,10 +58,8 @@ async function downloadOneEpisode(ep, { outputDir, force, embedCoverFlag }) {
   return { status: "success", info, file: filename };
 }
 
-async function downloadEps(episodes, { outputDir, force, embedCoverFlag }) {
-  const mapped = await parallelMap(episodes, (ep) =>
-    downloadOneEpisode(ep, { outputDir, force, embedCoverFlag }),
-  );
+async function downloadEps(episodes, opts) {
+  const mapped = await parallelMap(episodes, (ep) => downloadOneEpisode(ep, opts));
 
   const results = { success: [], failed: [], skipped: [] };
   for (const r of mapped) {
@@ -60,7 +70,8 @@ async function downloadEps(episodes, { outputDir, force, embedCoverFlag }) {
   return results;
 }
 
-async function syncAction() {
+async function syncAction(opts) {
+  const config = loadConfig();
   const subs = loadSubscriptions();
   if (subs.length === 0) {
     console.log("📭 暂无订阅。使用 podgrip subscribe <播客链接> 添加");
@@ -73,7 +84,8 @@ async function syncAction() {
   for (const sub of subs) {
     console.log(`\n📻 检查：${sub.name}`);
     const data = await parsePodcastPage(sub.url);
-    const newEps = data.episodes.filter((ep) => !isArchived(ep.id));
+    let newEps = data.episodes.filter((ep) => !isArchived(ep.id));
+    newEps = applyFilters(newEps, opts);
 
     if (newEps.length === 0) {
       console.log("   已是最新");
@@ -88,6 +100,8 @@ async function syncAction() {
       outputDir,
       force: false,
       embedCoverFlag: true,
+      template: config.filenameTemplate,
+      concurrency: config.concurrency,
     });
 
     totalNew += results.success.length;
@@ -112,7 +126,11 @@ export function registerBatchCommands(program) {
     .description("交互式选择剧集并下载")
     .option("-f, --force", "覆盖已存在的文件", false)
     .option("--no-cover", "不嵌入封面")
+    .option("--limit <n>", "最多下载 N 集")
+    .option("--offset <n>", "跳过前 N 集")
+    .option("--reverse", "从最旧开始")
     .action(async (podcastUrl, opts) => {
+      const config = loadConfig();
       const data = await parsePodcastPage(podcastUrl);
       const selected = await selectEpisodes(data.episodes);
 
@@ -121,17 +139,20 @@ export function registerBatchCommands(program) {
         process.exit(0);
       }
 
+      const filtered = applyFilters(selected, opts);
       const outputDir = path.join(getDesktopPath(), data.podcastName);
       if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
         console.log(`\n📁 创建目录：${outputDir}`);
       }
 
-      console.log(`\n📋 并发下载 ${selected.length} 集到 ${outputDir}\n`);
-      const results = await downloadEps(selected, {
+      console.log(`\n📋 并发下载 ${filtered.length} 集到 ${outputDir}\n`);
+      const results = await downloadEps(filtered, {
         outputDir,
         force: opts.force,
         embedCoverFlag: opts.cover !== false,
+        template: config.filenameTemplate,
+        concurrency: config.concurrency,
       });
 
       console.log("\n📊 处理统计:");
@@ -161,9 +182,21 @@ export function registerBatchCommands(program) {
     });
 
   program
+    .command("unsubscribe <index>")
+    .description("取消订阅（编号见 subscriptions 命令）")
+    .action((index) => {
+      const removed = removeSubscription(parseInt(index) - 1);
+      if (removed) console.log(`✅ 已取消订阅：${removed.name}`);
+      else console.log("❌ 无效的订阅编号");
+    });
+
+  program
     .command("sync")
     .description("检查所有订阅，下载新剧集")
-    .action(async () => {
-      await syncAction();
+    .option("--limit <n>", "每个订阅最多下载 N 集")
+    .option("--offset <n>", "跳过前 N 集")
+    .option("--reverse", "从最旧开始")
+    .action(async (opts) => {
+      await syncAction(opts);
     });
 }

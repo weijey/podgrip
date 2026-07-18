@@ -11,7 +11,11 @@ export function getDesktopPath() {
   return path.join(os.homedir(), "Desktop");
 }
 
-export function generateFilename(info, format = "m4a") {
-  const prefix = info.podcastName ? `[${info.podcastName}] ` : "";
-  return `${prefix}${info.title}.${format}`;
+export function generateFilename(info, template = "[{{podcast}}] {{title}}") {
+  let name = template
+    .replace(/\{\{podcast\}\}/g, info.podcastName || "")
+    .replace(/\{\{title\}\}/g, info.title || "")
+    .replace(/\{\{episode_id\}\}/g, info.episodeId || "");
+  if (!name.endsWith(".m4a") && !name.endsWith(".mp3")) name += ".m4a";
+  return name;
 }
