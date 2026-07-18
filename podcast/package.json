@@ -1,0 +1,48 @@
+{
+  "name": "xyz-dl",
+  "version": "1.0.2",
+  "description": "下载小宇宙播客音频，自动嵌入专辑封面和元数据",
+  "main": "index.js",
+  "bin": {
+    "xyz-dl": "bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "index.js"
+  ],
+  "scripts": {
+    "start": "node bin/cli.js",
+    "test": "node -e \"const m=require('./lib/extractor.js');const fn=m.generateFilename({podcastName:'T',title:'E1'});console.assert(fn==='[T] E1.m4a');console.log('PASS: module loads')\"",
+    "smoke": "node bin/cli.js --help"
+  },
+  "keywords": [
+    "xiaoyuzhou",
+    "podcast",
+    "audio",
+    "downloader",
+    "小宇宙",
+    "播客",
+    "xyz"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cyronlee/xyz-dl.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Cyronlee/xyz-dl/issues"
+  },
+  "homepage": "https://github.com/Cyronlee/xyz-dl#readme",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0-rc.12"
+  },
+  "optionalDependencies": {
+    "node-id3": "^0.2.0"
+  }
+}

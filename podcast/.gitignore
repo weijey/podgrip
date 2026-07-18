@@ -1,0 +1,6 @@
+node_modules/
+downloads/
+*.m4a
+*.mp3
+temp_cover.jpg
+result-*.json
