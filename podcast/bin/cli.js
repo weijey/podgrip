@@ -6,7 +6,7 @@ import { registerBatchCommands } from "../cli/batch.js";
 
 const program = new Command();
 
-program.name("xyz-dl").description("🎵 小宇宙播客下载器").version("1.1.0");
+program.name("podgrip").description("🎵 小宇宙播客下载器 — Grip your podcasts").version("1.1.0");
 
 registerSingleCommands(program);
 registerBatchCommands(program);
