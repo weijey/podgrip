@@ -12,25 +12,27 @@
 <body>
 <header>
   <h1><a href="/">podgrip</a></h1>
-  <nav>
-    <button id="nav-subscriptions" onclick="showMain()">订阅</button>
-    <button id="btn-add" onclick="showAdd()">+ 添加</button>
-  </nav>
+  <button id="btn-add" onclick="showAdd()">+ 添加订阅</button>
 </header>
 
 <main>
   <section id="main-view">
-    <div id="subscription-list"></div>
+    <div id="subscription-list"><div class="loading">加载中&hellip;</div></div>
   </section>
 
   <section id="detail-view" class="hidden">
-    <button class="back" onclick="showMain()">← 返回</button>
-    <h2 id="detail-title"></h2>
+    <div class="detail-header">
+      <button class="back" onclick="showMain()">&larr; 返回</button>
+      <div>
+        <h2 id="detail-title"></h2>
+        <p id="detail-meta" class="dim"></p>
+      </div>
+    </div>
     <div id="episode-list"></div>
   </section>
 
   <section id="add-view" class="hidden">
-    <button class="back" onclick="showMain()">← 返回</button>
+    <button class="back" onclick="showMain()">&larr; 返回</button>
     <h2>添加订阅</h2>
     <form id="add-form" onsubmit="handleAdd(event)">
       <input type="url" id="add-url" placeholder="小宇宙播客链接" required>
@@ -40,10 +42,9 @@
   </section>
 </main>
 
-<aside id="download-queue" class="hidden">
-  <h3>下载队列</h3>
-  <div id="queue-items"></div>
-</aside>
+<footer id="download-toast" class="hidden">
+  <div id="toast-content"></div>
+</footer>
 
 <script src="/app.js" type="module"></script>
 </body>

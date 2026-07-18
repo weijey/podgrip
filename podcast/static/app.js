@@ -9,7 +9,6 @@ function showView(id) {
 
 function showMain() { showView("#main-view"); loadSubscriptions() }
 function showAdd() { showView("#add-view") }
-function showDetail() { showView("#detail-view") }
 
 async function loadSubscriptions() {
   const list = $("#subscription-list")
@@ -19,13 +18,60 @@ async function loadSubscriptions() {
     const res = await fetch("/api/subscriptions")
     const subs = await res.json()
     if (subs.length === 0) {
-      list.innerHTML = '<div class="empty-state">暂无订阅<br><span class="dim">点击右上角 + 添加</span></div>'
+      list.innerHTML = '<div class="empty-state"><p>暂无订阅</p><span class="dim">点击右上角添加第一个播客</span></div>'
       return
     }
-    list.innerHTML = subs.map((s, i) => `
-      <div class="card" onclick="loadEpisodes('${encodeURIComponent(s.url)}', '${s.name}')">
-        <div class="card-name">${s.name}</div>
-        <div class="card-meta">${s.url}</div>
+    list.innerHTML = subs.map((s) => `
+      <div class="sub-card" onclick="loadEpisodes('${s.url}', '${s.name}')">
+        <div class="sub-card-left">
+          <div class="sub-card-name">${s.name}</div>
+          <div class="sub-card-stats">${s.episodeCount || ""}${s.newCount ? ' <span class="new-badge">+'+s.newCount+'</span>' : ""}</div>
+        </div>
+        <span class="sub-card-arrow">&rsaquo;</span>
+      </div>
+    `).join("")
+    // enrich with episode counts
+    subs.forEach((s) => enrichCard(s.url, s.name))
+  } catch {
+    list.innerHTML = '<div class="empty-state">加载失败</div>'
+  }
+}
+
+async function enrichCard(url, name) {
+  try {
+    const res = await fetch("/api/episodes?url=" + encodeURIComponent(url))
+    const data = await res.json()
+    const newCount = data.episodes.filter((e) => !e.archived).length
+    const cards = [...document.querySelectorAll(".sub-card")]
+    const card = cards.find((c) => c.querySelector(".sub-card-name")?.textContent === name)
+    if (card) {
+      card.querySelector(".sub-card-stats").innerHTML =
+        `${data.episodes.length} 集` + (newCount > 0 ? ` <span class="new-badge">+${newCount}</span>` : "")
+    }
+  } catch { /* quietly */ }
+}
+
+async function loadEpisodes(url, name) {
+  showView("#detail-view")
+  $("#detail-title").textContent = name
+  $("#detail-meta").textContent = "加载中&hellip;"
+  const list = $("#episode-list")
+  list.innerHTML = ""
+
+  try {
+    const res = await fetch("/api/episodes?url=" + url)
+    const data = await res.json()
+    const archived = data.episodes.filter((ep) => ep.archived).length
+    $("#detail-meta").textContent = `${data.episodes.length} 集 · ${archived} 已下载 · 输出到 桌面/${data.podcastName}`
+    list.innerHTML = data.episodes.map((ep) => `
+      <div class="ep-card">
+        <span class="ep-title">${ep.title}</span>
+        <span class="ep-meta">
+          ${ep.archived
+            ? '<span class="status-tag tag-done">已下载</span>'
+            : `<button class="btn-dl" data-id="${ep.id}" data-title="${ep.title}" onclick="downloadEpisode(this)">下载</button>`
+          }
+        </span>
       </div>
     `).join("")
   } catch {
@@ -33,69 +79,58 @@ async function loadSubscriptions() {
   }
 }
 
-async function loadEpisodes(url, name) {
-  showView("#detail-view")
-  $("#detail-title").textContent = name
-  const list = $("#episode-list")
-  list.innerHTML = '<div class="loading">加载中&hellip;</div>'
-
-  try {
-    const res = await fetch("/api/episodes?url=" + url)
-    const data = await res.json()
-    list.innerHTML = data.episodes.map((ep) => `
-      <div class="episode-row">
-        <span class="episode-title">${ep.title}</span>
-        ${ep.archived
-          ? '<span class="episode-status status-archived">已下载</span>'
-          : `<button class="btn-download" data-id="${ep.id}" data-title="${ep.title}" onclick="downloadEpisode(this)">下载</button>`
-        }
-      </div>
-    `).join("")
-  } catch {
-    list.innerHTML = '<div class="empty-state">加载失败</div>'
-  }
+function showToast() {
+  $("#download-toast").classList.remove("hidden")
 }
 
 function downloadEpisode(btn) {
   const id = btn.dataset.id
   const title = btn.dataset.title
   btn.disabled = true
-  btn.textContent = "队列中"
+  btn.textContent = "排队中"
+  btn.classList.remove("btn-dl")
+  btn.classList.add("status-tag", "tag-ing")
 
-  const queue = $("#download-queue")
-  queue.classList.remove("hidden")
-
+  showToast()
+  const toast = $("#toast-content")
   const item = document.createElement("div")
-  item.className = "queue-item"
-  item.innerHTML = `<span>${title}</span><span class="queue-progress">等待中</span>`
-  item.dataset.id = id
-  $("#queue-items").appendChild(item)
+  item.className = "toast-item"
+  item.innerHTML = `<span class="t-title">${title}</span><span class="t-status">等待中</span>`
+  toast.appendChild(item)
 
   const evt = new EventSource("/api/download/" + id)
 
-  evt.addEventListener("status", (e) => {
-    const d = JSON.parse(e.data)
-    item.querySelector(".queue-progress").textContent = d.message
-  })
-
   evt.addEventListener("progress", (e) => {
     const d = JSON.parse(e.data)
-    item.querySelector(".queue-progress").textContent = d.percent + "%"
+    item.querySelector(".t-status").textContent = d.percent + "%"
+    btn.textContent = d.percent + "%"
   })
 
   evt.addEventListener("done", (e) => {
     const d = JSON.parse(e.data)
-    item.querySelector(".queue-progress").textContent = "✅ " + d.size
+    item.querySelector(".t-status").className = "t-status t-done"
+    item.querySelector(".t-status").textContent = "✅ " + d.size
     btn.textContent = "已下载"
-    btn.classList.add("status-archived")
-    btn.classList.remove("btn-download")
+    btn.classList.remove("tag-ing")
+    btn.classList.add("status-tag", "tag-done")
+    btn.disabled = true
     evt.close()
+    // hide toast after 4s if no active downloads
+    setTimeout(() => {
+      if (!$("#toast-content").querySelector(".t-status:not(.t-done):not(.t-fail)")) {
+        $("#download-toast").classList.add("hidden")
+        $("#toast-content").innerHTML = ""
+      }
+    }, 4000)
   })
 
-  evt.addEventListener("error", (e) => {
-    item.querySelector(".queue-progress").textContent = "❌ 失败"
-    btn.disabled = false
+  evt.addEventListener("error", () => {
+    item.querySelector(".t-status").className = "t-status t-fail"
+    item.querySelector(".t-status").textContent = "❌ 失败"
     btn.textContent = "重试"
+    btn.classList.remove("tag-ing")
+    btn.classList.add("btn-dl")
+    btn.disabled = false
     evt.close()
   })
 }
@@ -111,7 +146,7 @@ async function handleAdd(e) {
 
   try {
     const res = await fetch("/api/episodes?url=" + url)
-    if (!res.ok) throw new Error("解析失败")
+    if (!res.ok) throw new Error("解析失败，请检查链接")
     const data = await res.json()
 
     await fetch("/api/subscriptions", {
