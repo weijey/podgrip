@@ -40,7 +40,7 @@ async function loadEpisodes(url, name) {
   list.innerHTML = '<div class="loading">加载中&hellip;</div>'
 
   try {
-    const res = await fetch("/api/episodes?url=" + encodeURIComponent(url))
+    const res = await fetch("/api/episodes?url=" + url)
     const data = await res.json()
     list.innerHTML = data.episodes.map((ep) => `
       <div class="episode-row">
@@ -110,7 +110,7 @@ async function handleAdd(e) {
   status.className = "dim"
 
   try {
-    const res = await fetch("/api/episodes?url=" + encodeURIComponent(url))
+    const res = await fetch("/api/episodes?url=" + url)
     if (!res.ok) throw new Error("解析失败")
     const data = await res.json()
 
