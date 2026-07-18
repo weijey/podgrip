@@ -88,3 +88,11 @@ podgrip select <podcast>    # 交互式选择下载 (输出到 Windows 桌面)
 
 按计划优先级: A(归档去重) → B(日期筛选) → D(并发下载) → C(RSS 监控)
 详见 .claude/plans/smooth-wondering-quokka.md (最新 plan)
+
+## Git 状态
+
+- GitHub: https://github.com/weijey/podgrip
+- 最新 commit: 181be65 docs: add CLAUDE.md with project overview and architecture
+- 最新 release: v1.1.2
+- 共 9 次提交, 从调研到发布完整链路
+- 所有改动已 push
